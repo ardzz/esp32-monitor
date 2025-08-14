@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import Alert from './components/Alert'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
@@ -19,6 +20,9 @@ export default function App() {
   const [routerUsername, setRouterUsername] = useState('admin')
   const [routerPassword, setRouterPassword] = useState('admin')
   const [networkLoading, setNetworkLoading] = useState(false)
+  const [alert, setAlert] = useState(null)
+
+  const showAlert = (message, type = 'info') => setAlert({ message, type })
 
   const fetchPorts = async () => {
     const res = await fetch(`${API_BASE}/ports`)
@@ -63,7 +67,7 @@ export default function App() {
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      alert(`Attach failed: ${err.detail || res.status}`)
+      showAlert(`Attach failed: ${err.detail || res.status}`, 'error')
       return
     }
     setAttached(true)
@@ -140,7 +144,7 @@ export default function App() {
 
   const networkDisconnect = async () => {
     if (!macAddress.trim()) {
-      alert('Please enter MAC address')
+      showAlert('Please enter MAC address', 'error')
       return
     }
     
@@ -159,15 +163,15 @@ export default function App() {
       
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        alert(`Network disconnect failed: ${err.detail || res.status}`)
+        showAlert(`Network disconnect failed: ${err.detail || res.status}`, 'error')
         return
       }
       
       const result = await res.json()
       setNetworkConnected(false)
-      alert('ESP32 network disconnected successfully')
+      showAlert('ESP32 network disconnected successfully', 'success')
     } catch (error) {
-      alert(`Network disconnect error: ${error.message}`)
+      showAlert(`Network disconnect error: ${error.message}`, 'error')
     } finally {
       setNetworkLoading(false)
     }
@@ -175,7 +179,7 @@ export default function App() {
 
   const networkConnect = async () => {
     if (!macAddress.trim()) {
-      alert('Please enter MAC address')
+      showAlert('Please enter MAC address', 'error')
       return
     }
     
@@ -194,15 +198,15 @@ export default function App() {
       
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        alert(`Network connect failed: ${err.detail || res.status}`)
+        showAlert(`Network connect failed: ${err.detail || res.status}`, 'error')
         return
       }
       
       const result = await res.json()
       setNetworkConnected(true)
-      alert('ESP32 network connected successfully')
+      showAlert('ESP32 network connected successfully', 'success')
     } catch (error) {
-      alert(`Network connect error: ${error.message}`)
+      showAlert(`Network connect error: ${error.message}`, 'error')
     } finally {
       setNetworkLoading(false)
     }
@@ -210,6 +214,7 @@ export default function App() {
 
   return (
     <div className="min-h-full w-full bg-gray-50 text-gray-900">
+      <Alert message={alert?.message} type={alert?.type} onClose={() => setAlert(null)} />
       <header className="border-b bg-white">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold">ESP Serial Web Monitor</h1>
