@@ -1,0 +1,227 @@
+import React, { useEffect, useRef, useState } from 'react'
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+
+export default function App() {
+  const [ports, setPorts] = useState([])
+  const [selectedPort, setSelectedPort] = useState('')
+  const [baud, setBaud] = useState(115200)
+  const [attached, setAttached] = useState(false)
+  const [log, setLog] = useState([])
+  const [sending, setSending] = useState('')
+  const wsRef = useRef(null)
+  const logEndRef = useRef(null)
+
+  const fetchPorts = async () => {
+    const res = await fetch(`${API_BASE}/ports`)
+    const data = await res.json()
+    setPorts(data.ports || [])
+    if ((data.ports || []).length > 0 && !selectedPort) {
+      setSelectedPort(data.ports[0].device)
+    }
+  }
+
+  const fetchStatus = async () => {
+    const res = await fetch(`${API_BASE}/status`)
+    const data = await res.json()
+    setAttached(!!data.attached)
+  }
+
+  useEffect(() => {
+    fetchPorts()
+    fetchStatus()
+    const t = setInterval(() => {
+      fetchPorts()
+    }, 3000)
+    return () => clearInterval(t)
+  }, [])
+
+  useEffect(() => {
+    if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [log])
+
+  const connect = async () => {
+    if (!selectedPort) return
+    const res = await fetch(`${API_BASE}/attach`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ port: selectedPort, baudrate: Number(baud) })
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      alert(`Attach failed: ${err.detail || res.status}`)
+      return
+    }
+    setAttached(true)
+    openWS()
+  }
+
+  const openWS = () => {
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+    const url = API_BASE.replace('http', 'ws') + '/ws/serial'
+    const ws = new WebSocket(url)
+    ws.onopen = () => {
+      // console.log('ws open')
+    }
+    ws.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        const ts = new Date(data.ts * 1000).toLocaleString()
+        const line = data.line
+        setLog(prev => {
+          const arr = [...prev, `[${ts}] ${line}`]
+          if (arr.length > 5000) arr.shift()
+          return arr
+        })
+      } catch {
+        setLog(prev => {
+          const arr = [...prev, e.data]
+          if (arr.length > 5000) arr.shift()
+          return arr
+        })
+      }
+    }
+    ws.onclose = () => {
+      // console.log('ws closed')
+    }
+    ws.onerror = () => {
+      // console.log('ws error')
+    }
+    wsRef.current = ws
+  }
+
+  const disconnect = async () => {
+    await fetch(`${API_BASE}/detach`, { method: 'POST' })
+    setAttached(false)
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+  }
+
+  const clearLog = () => setLog([])
+
+  const downloadLog = () => {
+    const blob = new Blob([log.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `serial-log-${Date.now()}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const sendLine = async () => {
+    if (!sending.trim()) return
+    await fetch(`${API_BASE}/write`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ data: sending, newline: true })
+    }).catch(() => {})
+    setSending('')
+  }
+
+  return (
+    <div className="min-h-full w-full bg-gray-50 text-gray-900">
+      <header className="border-b bg-white">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <h1 className="text-xl font-bold">ESP Serial Web Monitor</h1>
+          <div className="text-sm">
+            Status: {attached ? <span className="text-green-600 font-semibold">ATTACHED</span> : <span className="text-red-600 font-semibold">DETACHED</span>}
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <section className="bg-white p-4 rounded-2xl shadow">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
+              <label className="block text-sm font-medium mb-1">Serial Port</label>
+              <select
+                className="w-full rounded-xl border-gray-300"
+                value={selectedPort}
+                onChange={e => setSelectedPort(e.target.value)}
+                disabled={attached}
+              >
+                {ports.map((p) => (
+                  <option key={p.device} value={p.device}>
+                    {p.device} {p.description ? `- ${p.description}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Baudrate</label>
+              <input
+                type="number"
+                className="w-full rounded-xl border-gray-300"
+                value={baud}
+                min="300"
+                max="921600"
+                step="300"
+                onChange={e => setBaud(e.target.value)}
+                disabled={attached}
+              />
+            </div>
+            <div className="flex gap-2">
+              {!attached ? (
+                <button
+                  className="flex-1 rounded-xl bg-blue-600 text-white px-4 py-2 font-medium shadow hover:bg-blue-700"
+                  onClick={connect}
+                >
+                  Attach
+                </button>
+              ) : (
+                <button
+                  className="flex-1 rounded-xl bg-gray-600 text-white px-4 py-2 font-medium shadow hover:bg-gray-700"
+                  onClick={disconnect}
+                >
+                  Detach
+                </button>
+              )}
+              <button
+                className="rounded-xl border px-3 py-2 shadow-sm"
+                onClick={fetchPorts}
+                disabled={attached}
+              >
+                Refresh Ports
+              </button>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button className="rounded-xl border px-3 py-2 shadow-sm" onClick={clearLog}>Clear</button>
+              <button className="rounded-xl border px-3 py-2 shadow-sm" onClick={downloadLog}>Download</button>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white p-4 rounded-2xl shadow">
+          <div className="h-[50vh] overflow-auto font-mono text-sm whitespace-pre-wrap border rounded-xl p-3 bg-gray-50">
+            {log.map((l, i) => <div key={i}>{l}</div>)}
+            <div ref={logEndRef} />
+          </div>
+          <div className="mt-3 flex gap-2">
+            <input
+              className="flex-1 rounded-xl border-gray-300"
+              placeholder="Type a line to send..."
+              value={sending}
+              onChange={e => setSending(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') sendLine() }}
+            />
+            <button
+              className="rounded-xl bg-emerald-600 text-white px-4 py-2 font-medium shadow hover:bg-emerald-700"
+              onClick={sendLine}
+              disabled={!attached}
+            >
+              Send
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}
