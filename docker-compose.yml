@@ -1,0 +1,23 @@
+version: "3.9"
+services:
+  backend:
+    build: ./backend
+    container_name: esp-serial-backend
+    ports:
+      - "8000:8000"
+    # Map your serial device here (Linux example: /dev/ttyUSB0 or /dev/ttyACM0)
+    # For macOS, use something like /dev/tty.usbserial-XXXX
+    # On Windows (Docker Desktop), mapping COM ports is not supported directly.
+    # Use WSL2 + usbipd-win or run the backend natively.
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
+    # If permissions are an issue, you can also try privileged:
+    # privileged: true
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: esp-serial-frontend
+    ports:
+      - "5173:80"
+    restart: unless-stopped
