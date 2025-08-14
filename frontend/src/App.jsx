@@ -5,7 +5,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 export default function App() {
   const [ports, setPorts] = useState([])
   const [selectedPort, setSelectedPort] = useState('')
-  const [baud, setBaud] = useState(115200)
+  const [baud, setBaud] = useState(9600)
   const [attached, setAttached] = useState(false)
   const [log, setLog] = useState([])
   const [sending, setSending] = useState('')
@@ -14,8 +14,8 @@ export default function App() {
   
   // Network control state
   const [networkConnected, setNetworkConnected] = useState(true)
-  const [macAddress, setMacAddress] = useState('')
-  const [routerHost, setRouterHost] = useState('192.168.1.1')
+  const [macAddress, setMacAddress] = useState('1C:69:20:31:6C:10')
+  const [routerHost, setRouterHost] = useState('192.168.0.1')
   const [routerUsername, setRouterUsername] = useState('admin')
   const [routerPassword, setRouterPassword] = useState('admin')
   const [networkLoading, setNetworkLoading] = useState(false)
