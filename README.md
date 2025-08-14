@@ -15,6 +15,7 @@ Web-based serial monitor for your ESP (ESP32/ESP8266/etc) running locally.
 - Detach (`POST /detach`)
 - Stream logs in real-time via `WS /ws/serial` (JSON with `ts` and `line`)
 - Send lines to the serial (`POST /write {data, newline}`)
+- **Network control**: Connect/disconnect ESP32 by blocking/unblocking MAC address
 - Tailwind UI with autoscroll, clear, download logs, send box
 - Dockerized backend & frontend
 
@@ -69,11 +70,35 @@ VITE_API_BASE=http://localhost:8000 npm run dev
 ## API Overview
 
 - `GET /ports` → `{ ports: [{ device, description, ... }] }`
-- `GET /status` → `{ attached: bool }`
+- `GET /status` → `{ attached: bool, network_connected: bool, mac_address: string }`
 - `POST /attach` → body `{ "port": "/dev/ttyUSB0", "baudrate": 115200 }`
 - `POST /detach` → `{ ok: true }`
 - `POST /write` → body `{ "data": "AT+GMR", "newline": true }`
+- `POST /network/connect` → body `{ "mac_address": "AA:BB:CC:DD:EE:FF", "router_host": "192.168.1.1", "username": "admin", "password": "admin" }`
+- `POST /network/disconnect` → body `{ "mac_address": "AA:BB:CC:DD:EE:FF", "router_host": "192.168.1.1", "username": "admin", "password": "admin" }`
 - `WS /ws/serial` → JSON messages `{ "ts": <unix seconds>, "line": "..." }`
+
+---
+
+## Network Control
+
+The application includes network connectivity simulation through router-based MAC address blocking/unblocking:
+
+### Usage
+1. **Enter ESP32 MAC Address**: Input your ESP32's MAC address (e.g., `AA:BB:CC:DD:EE:FF`)
+2. **Configure Router Settings**: Set your router's IP address, username, and password
+3. **Control Network Access**:
+   - **Disconnect**: Blocks the ESP32's MAC address on the router (simulates network offline)
+   - **Connect**: Unblocks the ESP32's MAC address on the router (simulates network online)
+
+### How it Works
+- The system calls your router's API to block/unblock MAC addresses
+- If the direct API call fails, it automatically attempts to login first and retry
+- Success is determined by the router responding with `{"result":"success"}`
+- Network status is displayed in the header and tracked in the `/status` endpoint
+
+### Router Compatibility
+The current implementation uses generic HTTP endpoints. You may need to adapt the `router_login()` and `block_unblock_mac()` functions in `backend/app/main.py` to match your specific router's API format.
 
 ---
 
