@@ -1,2 +1,7 @@
 .idea
 .venv
+backend/app/__pycache__/
+frontend/dist/
+node_modules/
+*.pyc
+__pycache__/
