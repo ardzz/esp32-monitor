@@ -11,6 +11,14 @@ export default function App() {
   const [sending, setSending] = useState('')
   const wsRef = useRef(null)
   const logEndRef = useRef(null)
+  
+  // Network control state
+  const [networkConnected, setNetworkConnected] = useState(true)
+  const [macAddress, setMacAddress] = useState('')
+  const [routerHost, setRouterHost] = useState('192.168.1.1')
+  const [routerUsername, setRouterUsername] = useState('admin')
+  const [routerPassword, setRouterPassword] = useState('admin')
+  const [networkLoading, setNetworkLoading] = useState(false)
 
   const fetchPorts = async () => {
     const res = await fetch(`${API_BASE}/ports`)
@@ -25,6 +33,10 @@ export default function App() {
     const res = await fetch(`${API_BASE}/status`)
     const data = await res.json()
     setAttached(!!data.attached)
+    setNetworkConnected(!!data.network_connected)
+    if (data.mac_address) {
+      setMacAddress(data.mac_address)
+    }
   }
 
   useEffect(() => {
@@ -126,19 +138,155 @@ export default function App() {
     setSending('')
   }
 
+  const networkDisconnect = async () => {
+    if (!macAddress.trim()) {
+      alert('Please enter MAC address')
+      return
+    }
+    
+    setNetworkLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/network/disconnect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mac_address: macAddress,
+          router_host: routerHost,
+          username: routerUsername,
+          password: routerPassword
+        })
+      })
+      
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert(`Network disconnect failed: ${err.detail || res.status}`)
+        return
+      }
+      
+      const result = await res.json()
+      setNetworkConnected(false)
+      alert('ESP32 network disconnected successfully')
+    } catch (error) {
+      alert(`Network disconnect error: ${error.message}`)
+    } finally {
+      setNetworkLoading(false)
+    }
+  }
+
+  const networkConnect = async () => {
+    if (!macAddress.trim()) {
+      alert('Please enter MAC address')
+      return
+    }
+    
+    setNetworkLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/network/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mac_address: macAddress,
+          router_host: routerHost,
+          username: routerUsername,
+          password: routerPassword
+        })
+      })
+      
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert(`Network connect failed: ${err.detail || res.status}`)
+        return
+      }
+      
+      const result = await res.json()
+      setNetworkConnected(true)
+      alert('ESP32 network connected successfully')
+    } catch (error) {
+      alert(`Network connect error: ${error.message}`)
+    } finally {
+      setNetworkLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-full w-full bg-gray-50 text-gray-900">
       <header className="border-b bg-white">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold">ESP Serial Web Monitor</h1>
-          <div className="text-sm">
-            Status: {attached ? <span className="text-green-600 font-semibold">ATTACHED</span> : <span className="text-red-600 font-semibold">DETACHED</span>}
+          <div className="text-sm space-x-4">
+            <span>Serial: {attached ? <span className="text-green-600 font-semibold">ATTACHED</span> : <span className="text-red-600 font-semibold">DETACHED</span>}</span>
+            <span>Network: {networkConnected ? <span className="text-green-600 font-semibold">CONNECTED</span> : <span className="text-red-600 font-semibold">DISCONNECTED</span>}</span>
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* Network Control Section */}
         <section className="bg-white p-4 rounded-2xl shadow">
+          <h2 className="text-lg font-semibold mb-4">Network Control</h2>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            <div>
+              <label className="block text-sm font-medium mb-1">ESP32 MAC Address</label>
+              <input
+                type="text"
+                className="w-full rounded-xl border-gray-300"
+                value={macAddress}
+                onChange={e => setMacAddress(e.target.value)}
+                placeholder="AA:BB:CC:DD:EE:FF"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Router Host</label>
+              <input
+                type="text"
+                className="w-full rounded-xl border-gray-300"
+                value={routerHost}
+                onChange={e => setRouterHost(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Username</label>
+              <input
+                type="text"
+                className="w-full rounded-xl border-gray-300"
+                value={routerUsername}
+                onChange={e => setRouterUsername(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Password</label>
+              <input
+                type="password"
+                className="w-full rounded-xl border-gray-300"
+                value={routerPassword}
+                onChange={e => setRouterPassword(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              {networkConnected ? (
+                <button
+                  className="flex-1 rounded-xl bg-red-600 text-white px-4 py-2 font-medium shadow hover:bg-red-700 disabled:opacity-50"
+                  onClick={networkDisconnect}
+                  disabled={networkLoading}
+                >
+                  {networkLoading ? 'Disconnecting...' : 'Disconnect'}
+                </button>
+              ) : (
+                <button
+                  className="flex-1 rounded-xl bg-green-600 text-white px-4 py-2 font-medium shadow hover:bg-green-700 disabled:opacity-50"
+                  onClick={networkConnect}
+                  disabled={networkLoading}
+                >
+                  {networkLoading ? 'Connecting...' : 'Connect'}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Serial Control Section */}
+        <section className="bg-white p-4 rounded-2xl shadow">
+          <h2 className="text-lg font-semibold mb-4">Serial Control</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div>
               <label className="block text-sm font-medium mb-1">Serial Port</label>
