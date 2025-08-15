@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import Alert from './components/Alert'
+import { Alert, AlertDescription } from './components/ui/alert'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
@@ -23,6 +23,12 @@ export default function App() {
   const [alert, setAlert] = useState(null)
 
   const showAlert = (message, type = 'info') => setAlert({ message, type })
+
+  useEffect(() => {
+    if (!alert) return
+    const t = setTimeout(() => setAlert(null), 5000)
+    return () => clearTimeout(t)
+  }, [alert])
 
   const fetchPorts = async () => {
     const res = await fetch(`${API_BASE}/ports`)
@@ -214,7 +220,21 @@ export default function App() {
 
   return (
     <div className="min-h-full w-full bg-gray-50 text-gray-900">
-      <Alert message={alert?.message} type={alert?.type} onClose={() => setAlert(null)} />
+      {alert && (
+        <Alert
+          variant={alert.type === 'error' ? 'destructive' : 'default'}
+          className="fixed top-4 right-4 z-50 w-auto pr-8"
+        >
+          <AlertDescription>{alert.message}</AlertDescription>
+          <button
+            onClick={() => setAlert(null)}
+            className="absolute top-2 right-2 text-sm opacity-70 hover:opacity-100"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </Alert>
+      )}
       <header className="border-b bg-white">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold">ESP Serial Web Monitor</h1>
