@@ -1,5 +1,7 @@
 import asyncio
 import httpx
+import os
+import subprocess
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +18,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
+)
+
+# Path to the PlatformIO CLI. This defaults to the user's Windows installation path
+# but can be overridden via the PIO_CMD environment variable.
+PIO_CMD = os.getenv(
+    "PIO_CMD",
+    r"C:\Users\Naufal Reky Ardhana\.platformio\penv\Scripts\pio",
 )
 
 serial_mgr = SerialManager()
@@ -103,6 +112,10 @@ class WriteReq(BaseModel):
     data: str
     newline: bool = True
 
+
+class FlashReq(BaseModel):
+    project_path: str
+
 class NetworkControlReq(BaseModel):
     mac_address: str = Field(..., description="ESP32 MAC address to block/unblock")
     router_host: str = Field(default="192.168.1.1", description="Router IP address")
@@ -146,6 +159,25 @@ def write(req: WriteReq):
         return {"ok": True}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/flash")
+def flash(req: FlashReq):
+    """Flash firmware using PlatformIO."""
+    if not os.path.isdir(req.project_path):
+        raise HTTPException(status_code=404, detail="Project path not found")
+    try:
+        result = subprocess.run(
+            [PIO_CMD, "run", "-t", "upload", "-e", "arduino_nano_esp32"],
+            cwd=req.project_path,
+            capture_output=True,
+            text=True,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    if result.returncode != 0:
+        raise HTTPException(status_code=400, detail=result.stderr.strip() or "Flash failed")
+    return {"ok": True, "output": result.stdout}
 
 @app.post("/network/disconnect")
 async def network_disconnect(req: NetworkControlReq):

@@ -20,6 +20,8 @@ export default function App() {
   const [routerUsername, setRouterUsername] = useState('admin')
   const [routerPassword, setRouterPassword] = useState('admin')
   const [networkLoading, setNetworkLoading] = useState(false)
+  const [projectPath, setProjectPath] = useState('')
+  const [flashLoading, setFlashLoading] = useState(false)
   const [alert, setAlert] = useState(null)
 
   const showAlert = (message, type = 'info') => setAlert({ message, type })
@@ -218,6 +220,31 @@ export default function App() {
     }
   }
 
+  const flashFirmware = async () => {
+    if (!projectPath.trim()) {
+      showAlert('Please enter project path', 'error')
+      return
+    }
+    setFlashLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/flash`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_path: projectPath })
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        showAlert(`Flash failed: ${err.detail || res.status}`, 'error')
+      } else {
+        showAlert('Flash successful', 'success')
+      }
+    } catch (error) {
+      showAlert(`Flash error: ${error.message}`, 'error')
+    } finally {
+      setFlashLoading(false)
+    }
+  }
+
   const sortedPorts = React.useMemo(() => {
     const re = /USB[\s-]*SERIAL/i;
     return [...ports].sort((a, b) => {
@@ -259,6 +286,32 @@ export default function App() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* Flash Firmware Section */}
+        <section className="bg-white p-4 rounded-2xl shadow">
+          <h2 className="text-lg font-semibold mb-4">Flash Firmware</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="md:col-span-3">
+              <label className="block text-sm font-medium mb-1">Project Path</label>
+              <input
+                type="text"
+                className="w-full rounded-xl border-gray-300"
+                value={projectPath}
+                onChange={e => setProjectPath(e.target.value)}
+                placeholder="Path to PlatformIO project"
+              />
+            </div>
+            <div>
+              <button
+                className="w-full rounded-xl bg-purple-600 text-white px-4 py-2 font-medium shadow hover:bg-purple-700 disabled:opacity-50"
+                onClick={flashFirmware}
+                disabled={flashLoading}
+              >
+                {flashLoading ? 'Flashing...' : 'Flash'}
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* Network Control Section */}
         <section className="bg-white p-4 rounded-2xl shadow">
           <h2 className="text-lg font-semibold mb-4">Network Control : MiFi Advan</h2>
