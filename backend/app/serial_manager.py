@@ -85,6 +85,21 @@ class SerialManager:
             except SerialException as e:
                 raise RuntimeError(f"Failed to write to serial: {e}")
 
+    def reset(self) -> None:
+        """Toggle DTR/RTS lines to reset the connected ESP32."""
+        with self._lock:
+            if not self.is_attached():
+                raise RuntimeError("Serial is not attached")
+            try:
+                # Typical ESP32 reset via serial control lines
+                self._ser.setDTR(False)
+                self._ser.setRTS(True)
+                time.sleep(0.1)
+                self._ser.setDTR(True)
+                self._ser.setRTS(False)
+            except SerialException as e:
+                raise RuntimeError(f"Failed to reset device: {e}")
+
     def register_client(self) -> asyncio.Queue:
         q: asyncio.Queue = asyncio.Queue(maxsize=2000)
         self._clients.add(q)

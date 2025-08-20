@@ -153,6 +153,17 @@ export default function App() {
     }
   }
 
+  const reset = async () => {
+    if (!attached) return
+    const res = await fetch(`${API_BASE}/reset`, { method: 'POST' })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      showAlert(`Reset failed: ${err.detail || res.status}`, 'error')
+      return
+    }
+    showAlert('ESP32 reset successfully', 'success')
+  }
+
   const clearLog = () => setLog([])
 
   const downloadLog = () => {
@@ -461,6 +472,13 @@ export default function App() {
                 disabled={attached}
               >
                 Refresh Ports
+              </button>
+              <button
+                className="rounded-xl bg-red-600 text-white px-4 py-2 font-medium shadow hover:bg-red-700"
+                onClick={reset}
+                disabled={!attached}
+              >
+                Reset
               </button>
             </div>
             <div className="flex gap-2 justify-end">
