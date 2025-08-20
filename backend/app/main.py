@@ -149,6 +149,16 @@ def detach():
     serial_mgr.detach()
     return {"ok": True}
 
+@app.post("/reset")
+def reset():
+    if not serial_mgr.is_attached():
+        raise HTTPException(status_code=409, detail="Serial not attached")
+    try:
+        serial_mgr.reset()
+        return {"ok": True}
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.post("/write")
 def write(req: WriteReq):
     if not serial_mgr.is_attached():
