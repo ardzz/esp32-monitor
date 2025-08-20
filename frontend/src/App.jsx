@@ -481,10 +481,6 @@ export default function App() {
                 Reset
               </button>
             </div>
-            <div className="flex gap-2 justify-end">
-              <button className="rounded-xl border px-3 py-2 shadow-sm" onClick={clearLog}>Clear</button>
-              <button className="rounded-xl border px-3 py-2 shadow-sm" onClick={downloadLog}>Download</button>
-            </div>
           </div>
         </section>
 
@@ -495,6 +491,13 @@ export default function App() {
         </section>
 
         <section className="bg-white p-4 rounded-2xl shadow">
+          <div className="flex justify-between mb-3">
+            <h2 className="text-lg font-semibold">Serial Monitor</h2>
+            <div className="flex gap-2">
+              <button className="rounded-xl border px-3 py-2 shadow-sm" onClick={clearLog}>Clear</button>
+              <button className="rounded-xl border px-3 py-2 shadow-sm" onClick={downloadLog}>Download</button>
+            </div>
+          </div>
           <div className="h-[50vh] overflow-auto font-mono text-sm whitespace-pre-wrap border rounded-xl p-3 bg-gray-50">
             {log.map((l, i) => <div key={i}>{l}</div>)}
           </div>

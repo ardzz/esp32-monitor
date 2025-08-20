@@ -3,3 +3,4 @@ uvicorn[standard]==0.30.0
 pyserial==3.5
 pydantic==2.8.2
 httpx==0.28.1
+esptool==5.0.2

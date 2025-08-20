@@ -6,6 +6,7 @@ import time
 from typing import Optional, Set, List
 from serial import Serial, SerialException
 from serial.tools import list_ports
+from esptool.reset import HardReset
 
 class SerialManager:
     """
@@ -86,18 +87,13 @@ class SerialManager:
                 raise RuntimeError(f"Failed to write to serial: {e}")
 
     def reset(self) -> None:
-        """Toggle DTR/RTS lines to reset the connected ESP32."""
+        """Reset the connected ESP32 using esptool's HardReset."""
         with self._lock:
             if not self.is_attached():
                 raise RuntimeError("Serial is not attached")
             try:
-                # Typical ESP32 reset via serial control lines
-                self._ser.setDTR(False)
-                self._ser.setRTS(True)
-                time.sleep(0.1)
-                self._ser.setDTR(True)
-                self._ser.setRTS(False)
-            except SerialException as e:
+                HardReset(self._ser)()
+            except Exception as e:
                 raise RuntimeError(f"Failed to reset device: {e}")
 
     def register_client(self) -> asyncio.Queue:
