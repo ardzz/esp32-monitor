@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Alert from './components/Alert'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://192.168.0.171:8000'
 
 export default function App() {
   const [ports, setPorts] = useState([])
@@ -48,7 +48,7 @@ export default function App() {
     fetchStatus()
     const t = setInterval(() => {
       fetchPorts()
-    }, 3000)
+    }, 10000)
     return () => clearInterval(t)
   }, [])
 
@@ -212,6 +212,19 @@ export default function App() {
     }
   }
 
+  const sortedPorts = React.useMemo(() => {
+    const re = /USB[\s-]*SERIAL/i;
+    return [...ports].sort((a, b) => {
+      const aMatch = re.test(a.description ?? "");
+      const bMatch = re.test(b.description ?? "");
+      if (aMatch !== bMatch) return aMatch ? -1 : 1;
+      const aLabel = (a.description || a.device);
+      const bLabel = (b.description || b.device);
+      return aLabel.localeCompare(bLabel, undefined, { sensitivity: "base" });
+    });
+  }, [ports]);
+
+
   return (
     <div className="min-h-full w-full bg-gray-50 text-gray-900">
       <Alert message={alert?.message} type={alert?.type} onClose={() => setAlert(null)} />
@@ -228,7 +241,7 @@ export default function App() {
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* Network Control Section */}
         <section className="bg-white p-4 rounded-2xl shadow">
-          <h2 className="text-lg font-semibold mb-4">Network Control</h2>
+          <h2 className="text-lg font-semibold mb-4">Network Control : MiFi Advan</h2>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
             <div>
               <label className="block text-sm font-medium mb-1">ESP32 MAC Address</label>
@@ -247,24 +260,6 @@ export default function App() {
                 className="w-full rounded-xl border-gray-300"
                 value={routerHost}
                 onChange={e => setRouterHost(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Username</label>
-              <input
-                type="text"
-                className="w-full rounded-xl border-gray-300"
-                value={routerUsername}
-                onChange={e => setRouterUsername(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Password</label>
-              <input
-                type="password"
-                className="w-full rounded-xl border-gray-300"
-                value={routerPassword}
-                onChange={e => setRouterPassword(e.target.value)}
               />
             </div>
             <div className="flex gap-2">
@@ -301,9 +296,9 @@ export default function App() {
                 onChange={e => setSelectedPort(e.target.value)}
                 disabled={attached}
               >
-                {ports.map((p) => (
+                {sortedPorts.map((p) => (
                   <option key={p.device} value={p.device}>
-                    {p.device} {p.description ? `- ${p.description}` : ''}
+                    {p.device} {p.description ? `- ${p.description}` : ""}
                   </option>
                 ))}
               </select>
