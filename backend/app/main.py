@@ -1,10 +1,10 @@
 import asyncio
 import httpx
 import os
-import subprocess
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .serial_manager import SerialManager
@@ -162,23 +162,38 @@ def write(req: WriteReq):
 
 
 @app.post("/flash")
-def flash(req: FlashReq):
-    """Flash firmware using PlatformIO."""
+async def flash(req: FlashReq):
+    """Flash firmware using PlatformIO and stream the output."""
     req.project_path = req.project_path.replace("\\", "/")
     if not os.path.isdir(req.project_path):
         raise HTTPException(status_code=404, detail="Project path not found")
+
     try:
-        result = subprocess.run(
-            [PIO_CMD, "run", "-t", "upload", "-e", "arduino_nano_esp32"],
+        proc = await asyncio.create_subprocess_exec(
+            PIO_CMD,
+            "run",
+            "-t",
+            "upload",
+            "-e",
+            "arduino_nano_esp32",
             cwd=req.project_path,
-            capture_output=True,
-            text=True,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    if result.returncode != 0:
-        raise HTTPException(status_code=400, detail=result.stderr.strip() or "Flash failed")
-    return {"ok": True, "output": result.stdout}
+
+    async def stream():
+        try:
+            while True:
+                line = await proc.stdout.readline()
+                if not line:
+                    break
+                yield line.decode()
+        finally:
+            await proc.wait()
+
+    return StreamingResponse(stream(), media_type="text/plain")
 
 @app.post("/network/disconnect")
 async def network_disconnect(req: NetworkControlReq):
