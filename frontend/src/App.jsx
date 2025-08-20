@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription } from './components/ui/alert'
+import DataChart from './components/data-chart'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://192.168.0.171:8000'
 
@@ -11,6 +12,9 @@ export default function App() {
   const [log, setLog] = useState([])
   const [sending, setSending] = useState('')
   const wsRef = useRef(null)
+  const [labels, setLabels] = useState([])
+  const [series1, setSeries1] = useState([])
+  const [series2, setSeries2] = useState([])
   
   // Network control state
   const [networkConnected, setNetworkConnected] = useState(true)
@@ -90,13 +94,39 @@ export default function App() {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data)
-        const ts = new Date(data.ts * 1000).toLocaleString()
+        const tsDate = new Date(data.ts * 1000)
+        const ts = tsDate.toLocaleString()
         const line = data.line
         setLog(prev => {
           const arr = [...prev, `[${ts}] ${line}`]
           if (arr.length > 5000) arr.shift()
           return arr
         })
+        if (line.includes('Payload:')) {
+          const jsonStr = line.split('Payload:')[1].trim()
+          try {
+            const payload = JSON.parse(jsonStr)
+            if (Array.isArray(payload.data)) {
+              setLabels(prev => {
+                const arr = [...prev, tsDate.toLocaleTimeString()]
+                if (arr.length > 50) arr.shift()
+                return arr
+              })
+              setSeries1(prev => {
+                const arr = [...prev, payload.data[0]]
+                if (arr.length > 50) arr.shift()
+                return arr
+              })
+              setSeries2(prev => {
+                const arr = [...prev, payload.data[1]]
+                if (arr.length > 50) arr.shift()
+                return arr
+              })
+            }
+          } catch {
+            /* ignore */
+          }
+        }
       } catch {
         setLog(prev => {
           const arr = [...prev, e.data]
@@ -438,6 +468,12 @@ export default function App() {
               <button className="rounded-xl border px-3 py-2 shadow-sm" onClick={downloadLog}>Download</button>
             </div>
           </div>
+        </section>
+
+        {/* MQTT Data Chart */}
+        <section className="bg-white p-4 rounded-2xl shadow">
+          <h2 className="text-lg font-semibold mb-4">MQTT Payload Data</h2>
+          <DataChart labels={labels} data1={series1} data2={series2} />
         </section>
 
         <section className="bg-white p-4 rounded-2xl shadow">
