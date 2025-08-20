@@ -164,6 +164,7 @@ def write(req: WriteReq):
 @app.post("/flash")
 def flash(req: FlashReq):
     """Flash firmware using PlatformIO."""
+    req.project_path = req.project_path.replace("\\", "/")
     if not os.path.isdir(req.project_path):
         raise HTTPException(status_code=404, detail="Project path not found")
     try:

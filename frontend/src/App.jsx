@@ -20,7 +20,7 @@ export default function App() {
   const [routerUsername, setRouterUsername] = useState('admin')
   const [routerPassword, setRouterPassword] = useState('admin')
   const [networkLoading, setNetworkLoading] = useState(false)
-  const [projectPath, setProjectPath] = useState('')
+  const [projectPath, setProjectPath] = useState('C:\\Users\\Naufal Reky Ardhana\\CLionProjects\\diawan-iot-boilerplate')
   const [flashLoading, setFlashLoading] = useState(false)
   const [alert, setAlert] = useState(null)
 
@@ -171,7 +171,7 @@ export default function App() {
       
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        showAlert(`Network disconnect failed: ${err.detail || res.status}`, 'error')
+        showAlert(`Network disconnect failed: ${err.detail || res.status} ${res.ok}`, 'error')
         return
       }
       
