@@ -74,6 +74,7 @@ VITE_API_BASE=http://localhost:8000 npm run dev
 - `POST /attach` → body `{ "port": "/dev/ttyUSB0", "baudrate": 115200 }`
 - `POST /detach` → `{ ok: true }`
 - `POST /write` → body `{ "data": "AT+GMR", "newline": true }`
+- `POST /reset` → `{ ok: true }` (resets the attached ESP32)
 - `POST /network/connect` → body `{ "mac_address": "AA:BB:CC:DD:EE:FF", "router_host": "192.168.1.1", "username": "admin", "password": "admin" }`
 - `POST /network/disconnect` → body `{ "mac_address": "AA:BB:CC:DD:EE:FF", "router_host": "192.168.1.1", "username": "admin", "password": "admin" }`
 - `WS /ws/serial` → JSON messages `{ "ts": <unix seconds>, "line": "..." }`
