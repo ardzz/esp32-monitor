@@ -11,7 +11,6 @@ export default function App() {
   const [log, setLog] = useState([])
   const [sending, setSending] = useState('')
   const wsRef = useRef(null)
-  const logEndRef = useRef(null)
   
   // Network control state
   const [networkConnected, setNetworkConnected] = useState(true)
@@ -22,6 +21,7 @@ export default function App() {
   const [networkLoading, setNetworkLoading] = useState(false)
   const [projectPath, setProjectPath] = useState('C:\\Users\\Naufal Reky Ardhana\\CLionProjects\\diawan-iot-boilerplate')
   const [flashLoading, setFlashLoading] = useState(false)
+  const [flashOutput, setFlashOutput] = useState('')
   const [alert, setAlert] = useState(null)
 
   const showAlert = (message, type = 'info') => setAlert({ message, type })
@@ -60,11 +60,6 @@ export default function App() {
     return () => clearInterval(t)
   }, [])
 
-  useEffect(() => {
-    if (logEndRef.current) {
-      logEndRef.current.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [log])
 
   const connect = async () => {
     if (!selectedPort) return
@@ -226,20 +221,39 @@ export default function App() {
       return
     }
     setFlashLoading(true)
+    setFlashOutput('')
     try {
       const res = await fetch(`${API_BASE}/flash`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ project_path: projectPath })
       })
+
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        showAlert(`Flash failed: ${err.detail || res.status}`, 'error')
-      } else {
-        showAlert('Flash successful', 'success')
+        const data = await res.json().catch(() => ({}))
+        showAlert(`Flash failed: ${data.detail || res.status}`, 'error')
+        setFlashOutput(data.detail || '')
+        return
       }
+
+      if (!res.body) {
+        showAlert('Flash failed: no response body', 'error')
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        setFlashOutput(prev => prev + chunk)
+      }
+
+      showAlert('Flash complete', 'success')
     } catch (error) {
       showAlert(`Flash error: ${error.message}`, 'error')
+      setFlashOutput(error.message)
     } finally {
       setFlashLoading(false)
     }
@@ -310,6 +324,12 @@ export default function App() {
               </button>
             </div>
           </div>
+          {flashOutput && (
+            <div className="mt-4">
+              <h3 className="text-sm font-medium mb-1">PlatformIO Output</h3>
+              <pre className="bg-gray-100 p-2 rounded-xl text-xs overflow-auto max-h-48 whitespace-pre-wrap">{flashOutput}</pre>
+            </div>
+          )}
         </section>
 
         {/* Network Control Section */}
@@ -423,7 +443,6 @@ export default function App() {
         <section className="bg-white p-4 rounded-2xl shadow">
           <div className="h-[50vh] overflow-auto font-mono text-sm whitespace-pre-wrap border rounded-xl p-3 bg-gray-50">
             {log.map((l, i) => <div key={i}>{l}</div>)}
-            <div ref={logEndRef} />
           </div>
           <div className="mt-3 flex gap-2">
             <input
