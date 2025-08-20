@@ -11,7 +11,6 @@ export default function App() {
   const [log, setLog] = useState([])
   const [sending, setSending] = useState('')
   const wsRef = useRef(null)
-  const logEndRef = useRef(null)
   
   // Network control state
   const [networkConnected, setNetworkConnected] = useState(true)
@@ -61,11 +60,6 @@ export default function App() {
     return () => clearInterval(t)
   }, [])
 
-  useEffect(() => {
-    if (logEndRef.current) {
-      logEndRef.current.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [log])
 
   const connect = async () => {
     if (!selectedPort) return
@@ -449,7 +443,6 @@ export default function App() {
         <section className="bg-white p-4 rounded-2xl shadow">
           <div className="h-[50vh] overflow-auto font-mono text-sm whitespace-pre-wrap border rounded-xl p-3 bg-gray-50">
             {log.map((l, i) => <div key={i}>{l}</div>)}
-            <div ref={logEndRef} />
           </div>
           <div className="mt-3 flex gap-2">
             <input
